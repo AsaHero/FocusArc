@@ -1,0 +1,27 @@
+.flipclock {
+  --digit-size: clamp(48px, 13vw, 150px);
+  --digit-w: 0.74em;
+  --digit-h: 1.16em;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(3px, 0.8vw, 8px);
+  font-size: var(--digit-size);
+}
+
+.flip-colon {
+  font-family: var(--mono);
+  font-size: calc(var(--digit-size) * 0.7);
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1;
+  transform: translateY(-0.06em);
+  margin: 0 0.04em;
+}
+
+@media (max-width: 520px) {
+  .flipclock {
+    --digit-size: clamp(34px, 12.5vw, 70px);
+  }
+}

@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+*.log
+
+# Local SQLite data (contains Telegram credentials)
+server/focusarc.db
+server/focusarc.db-*
+*.sqlite
+*.sqlite-journal
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store

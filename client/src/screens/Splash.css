@@ -1,0 +1,11 @@
+.splash {
+  gap: 28px;
+}
+
+.splash-name {
+  font-family: var(--ui);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}

@@ -1,0 +1,13 @@
+**/node_modules
+**/dist
+**/build
+**/*.log
+server/focusarc.db
+server/focusarc.db-*
+*.sqlite
+.git
+.gitignore
+.claude
+k8s
+DEPLOY.md
+README.md

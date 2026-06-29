@@ -1,0 +1,30 @@
+.pulseline,
+.pulseline-spacer {
+  height: 2px;
+  width: min(420px, 60vw);
+  margin: 28px auto 0;
+  border-radius: 2px;
+}
+
+.pulseline-running {
+  background: var(--accent);
+  box-shadow: 0 0 14px rgba(201, 168, 76, 0.5);
+  animation: pulse-line 2.6s var(--ease) infinite;
+}
+
+.pulseline-paused {
+  background: var(--amber);
+  opacity: 0.7;
+}
+
+@keyframes pulse-line {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}

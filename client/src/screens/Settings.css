@@ -1,0 +1,70 @@
+.settings-screen {
+  justify-content: flex-start;
+  padding-top: max(28px, env(safe-area-inset-top));
+  overflow-y: auto;
+}
+
+.settings-stack {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 40px;
+}
+
+.settings-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.settings-back {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+.settings-back:hover {
+  color: var(--text);
+}
+
+.settings-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0 2px;
+}
+
+.settings-link {
+  align-self: flex-start;
+  color: var(--accent);
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.settings-toast {
+  font-size: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.settings-toast-ok {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(201, 168, 76, 0.3);
+}
+
+.settings-toast-err {
+  background: rgba(180, 60, 60, 0.12);
+  color: #e08a8a;
+  border-color: rgba(180, 60, 60, 0.3);
+}

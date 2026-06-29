@@ -1,0 +1,106 @@
+.flip {
+  position: relative;
+  width: var(--digit-w, 1ch);
+  height: var(--digit-h, 1.4em);
+  font-family: var(--mono);
+  font-size: var(--digit-size, 16vw);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  perspective: 600px;
+}
+
+.flip-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Each half holds a full-height glyph; overflow clips it to its window. */
+.flip-half span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--digit-h, 1.4em);
+  line-height: var(--digit-h, 1.4em);
+  text-align: center;
+}
+
+.flip-top {
+  top: 0;
+  border-radius: 0.12em 0.12em 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+
+/* glyph anchored to container top -> top window shows upper half */
+.flip-top span {
+  top: 0;
+}
+
+.flip-bottom {
+  bottom: 0;
+  border-radius: 0 0 0.12em 0.12em;
+  border: 1px solid var(--border);
+  border-top: none;
+}
+
+/* glyph anchored to container bottom -> bottom window shows lower half */
+.flip-bottom span {
+  bottom: 0;
+}
+
+/* The gold accent split line between the two halves. */
+.flip-divider {
+  position: absolute;
+  top: calc(50% - 1px);
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(201, 168, 76, 0.55) 20%,
+    rgba(201, 168, 76, 0.55) 80%,
+    transparent
+  );
+  z-index: 4;
+}
+
+/* Old top flips down around the divider. */
+.flip-anim-top {
+  z-index: 3;
+  transform-origin: bottom;
+  animation: flip-top 0.32s var(--ease) forwards;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.5);
+}
+
+/* New bottom flips up into place. */
+.flip-anim-bottom {
+  z-index: 3;
+  transform-origin: top;
+  transform: rotateX(90deg);
+  animation: flip-bottom 0.32s var(--ease) 0.16s forwards;
+}
+
+@keyframes flip-top {
+  0% {
+    transform: rotateX(0deg);
+  }
+  100% {
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes flip-bottom {
+  0% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}

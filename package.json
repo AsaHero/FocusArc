@@ -1,0 +1,18 @@
+{
+  "name": "focusarc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal daily focus timer with Telegram auto-reports",
+  "packageManager": "pnpm@10.33.2",
+  "scripts": {
+    "dev": "concurrently -n server,client -c yellow,cyan \"pnpm --filter server dev\" \"pnpm --filter client dev\"",
+    "build": "pnpm --filter server build && pnpm --filter client build",
+    "start": "pnpm --filter server start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+  }
+}
