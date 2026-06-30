@@ -3,9 +3,8 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { DateTime } from "luxon";
 import { FONTS_DIR, APP_NAME } from "../config.js";
-import { getSettings } from "../settings.js";
-import { sessionsForDate, elapsedMs } from "../sessions.js";
-import type { DaySummary } from "../sessions.js";
+import { elapsedMs } from "../sessions.js";
+import type { DaySummary, SessionRow } from "../sessions.js";
 import { prettyDate } from "../time.js";
 
 // Palette (mirrors the client theme).
@@ -45,9 +44,12 @@ function fmtHours(ms: number): string {
 }
 
 /** Render the daily report as a 1080×1080 PNG buffer. PART 1 of the report. */
-export async function renderReportImage(summary: DaySummary): Promise<Buffer> {
+export async function renderReportImage(
+  summary: DaySummary,
+  tz: string,
+  rows: SessionRow[]
+): Promise<Buffer> {
   ensureFonts();
-  const tz = getSettings().timezone;
 
   const W = 1080;
   const H = 1080;
@@ -94,7 +96,7 @@ export async function renderReportImage(summary: DaySummary): Promise<Buffer> {
   ctx.fillText("focused today", W / 2, H / 2 + 165);
 
   // 24h timeline bar of sessions
-  drawTimeline(ctx, summary, tz, pad, H - 240, W - pad * 2);
+  drawTimeline(ctx, rows, tz, pad, H - 240, W - pad * 2);
 
   // Streak badge (bottom-right)
   drawStreakBadge(ctx, summary.streak, W - pad, H - 90);
@@ -104,7 +106,7 @@ export async function renderReportImage(summary: DaySummary): Promise<Buffer> {
 
 function drawTimeline(
   ctx: ReturnType<ReturnType<typeof createCanvas>["getContext"]>,
-  summary: DaySummary,
+  rows: SessionRow[],
   tz: string,
   x: number,
   y: number,
@@ -123,7 +125,6 @@ function drawTimeline(
   ctx.stroke();
 
   // Segments — positioned by start/end time of day
-  const rows = sessionsForDate(summary.date);
   ctx.fillStyle = ACCENT;
   for (const s of rows) {
     const startDt = DateTime.fromMillis(s.start_ts).setZone(tz);

@@ -1,7 +1,7 @@
 # FocusArc
 
-A minimal, premium daily focus timer with a split-flap flip clock and an
-automatic Telegram daily report sent at **23:59** in your local timezone.
+A minimal, premium daily focus timer with a split-flap flip clock, per-user
+accounts, day-based focus streaks, and an on-demand Telegram daily report.
 
 Dark, quiet, focused — the timer is the product.
 
@@ -9,13 +9,22 @@ Dark, quiet, focused — the timer is the product.
 
 - **client/** — React + TypeScript + Vite. Flip-clock UI, Framer Motion screen
   transitions, zustand state, `localStorage` mirror for instant reads.
-- **server/** — minimal Node + Express backend (the always-on piece): the source
-  of truth in SQLite (`better-sqlite3`), a server-authoritative pause/refresh-safe
-  timer, the daily-report scheduler, server-side report image rendering
-  (`@napi-rs/canvas`), and Telegram delivery.
+- **server/** — minimal Node + Express backend: the source of truth in SQLite
+  (`better-sqlite3`), username/password auth (scrypt + JWT access/refresh tokens),
+  a server-authoritative pause/refresh-safe timer, server-side report image
+  rendering (`@napi-rs/canvas`), and Telegram delivery.
 
-The Node backend owns the midnight scheduler and Telegram sending so the report
-fires reliably regardless of whether a browser tab is open.
+## Accounts & streaks
+
+- **Sign up with a unique name + password.** Each user gets private sessions,
+  streak, and Telegram config. Tokens live in `localStorage`.
+- **Focus days, not calendar days.** Work counts toward the *focus day* you
+  started — late-night sessions that cross midnight stay on the same day. You
+  close a focus day with the **End day** button (which also sends the report).
+  A focus day left open for >24h auto-closes as a safety net.
+- **Streak** = consecutive focus days with at least one completed session.
+- **History** screen: a focus-hours heatmap plus current streak, longest streak,
+  and lifetime total.
 
 ## Run
 
@@ -34,22 +43,24 @@ or behind any static host; the backend serves the API on `:4000`).
 1. Create a bot with [@BotFather](https://t.me/BotFather), copy the token.
 2. Add the bot to your channel as an admin; get the channel ID (`@name` or `-100…`).
 3. In the app: **Settings → Bot token + Channel ID → Save**.
-4. **Send test report** to verify. Thereafter the report fires automatically at
-   23:59 your time, if you logged at least one session that day.
+4. **Send report now** to verify. After that, reports are **manual**: tapping
+   **End day** (or **Send report now**) delivers the current focus day's report.
+   There is no automatic scheduler.
 
 The report is two parts: a generated dashboard **image** (total hours, a 24-hour
 session timeline, streak) and a **text** summary.
 
 ## Configuration (env, server)
 
-| Var           | Default                 | Notes                                  |
-| ------------- | ----------------------- | -------------------------------------- |
-| `PORT`        | `4000`                  | Backend port                           |
-| `DB_PATH`     | `server/focusarc.db`    | SQLite file (gitignored)               |
-| `REPORT_TIME` | `23:59`                 | Local time-of-day the report fires     |
+| Var          | Default                | Notes                                          |
+| ------------ | ---------------------- | ---------------------------------------------- |
+| `PORT`       | `4000`                 | Backend port                                   |
+| `DB_PATH`    | `server/focusarc.db`   | SQLite file (gitignored)                       |
+| `JWT_SECRET` | dev default (insecure) | Signs access tokens — set in production         |
 
 ## Data
 
-SQLite is the source of truth (`settings` single row, `sessions`). Telegram
-credentials live only in that local DB and are never committed. `localStorage`
-mirrors the latest totals for instant first paint.
+SQLite is the source of truth (`users`, `sessions`, `refresh_tokens`). Passwords
+are scrypt-hashed; per-user Telegram credentials live only in the local DB and
+are never committed. `localStorage` holds the auth tokens and a mirror of the
+latest totals for instant first paint.

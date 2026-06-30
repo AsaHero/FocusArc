@@ -27,3 +27,18 @@
   gap: 14px;
   align-items: center;
 }
+
+.timer-endday {
+  margin-top: 28px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s var(--ease);
+}
+
+.timer-endday:hover {
+  opacity: 0.8;
+}

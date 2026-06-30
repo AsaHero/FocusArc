@@ -1,14 +1,18 @@
 # Deploying FocusArc to k3s (single-node VPS)
 
 FocusArc ships as **one container** (Express serves the API *and* the built
-frontend). It needs an **always-on pod** (for the 23:59 scheduler) and a
-**persistent volume** (for the SQLite DB + Telegram token). The manifests below
-encode both, plus the SQLite-safety rule: **1 replica, `Recreate` strategy**.
+frontend). It needs an **always-on pod** and a **persistent volume** (for the
+SQLite DB + per-user Telegram tokens). The manifests below encode that, plus the
+SQLite-safety rule: **1 replica, `Recreate` strategy**.
 
-> Access is **public with no auth** (as chosen). Anyone who reaches the URL can
-> read your sessions and change settings. Don't put a real Telegram token on a
-> guessable public host you don't trust. Adding auth later = a Traefik basic-auth
-> middleware on the Ingress.
+> **Accounts:** FocusArc has username + password sign-up. Each user has their own
+> private sessions, streak, and Telegram config. Sign-in uses a short-lived JWT
+> access token plus a rotating, revocable refresh token; both live in the
+> browser's `localStorage` (so they're XSS-exposed — keep the host trusted and
+> serve over HTTPS).
+>
+> **Set `JWT_SECRET`** to a long random value in production (`openssl rand -hex 32`).
+> If left at the dev default the server logs a warning and tokens are insecure.
 
 ## 0. Prerequisites (on the VPS)
 
@@ -53,14 +57,14 @@ kubectl -n focusarc get pods,svc,ingress
 kubectl -n focusarc rollout status deploy/focusarc
 ```
 
-Visit `http://<your-host>/` → you should land on onboarding.
+Visit `http://<your-host>/` → you should land on the sign-up / log-in screen.
 
 ## 3. Configure the Telegram report
 
-In the app: **Settings → Bot token + Channel ID → Save → Send test report**.
-Thereafter the report fires automatically at 23:59 in the timezone you set, on
-days with at least one session. Override the time with the `REPORT_TIME` env in
-`k8s/focusarc.yaml` if needed.
+Sign up, then in the app: **Settings → Bot token + Channel ID → Save → Send
+report now**. Reports are **manual** — they're sent when you tap **End day**
+(which also closes the focus day for your streak) or **Send report now**. There
+is no automatic scheduler.
 
 ## 4. Updating to a new version
 
@@ -81,7 +85,8 @@ the PVC is untouched by updates.
 | --- | --- |
 | Pod `ErrImageNeverPull` / `ImagePullBackOff` | Image not imported into containerd. Re-run the `k3s ctr images import` step; tag must match `image:` in the manifest. |
 | Pod `Pending` | `kubectl -n focusarc describe pvc focusarc-data` — local-path provisioner binds on first pod schedule. |
-| Report never sends | `kubectl -n focusarc logs deploy/focusarc` for `[scheduler]` lines; confirm token/channel saved and a session exists that day; verify the timezone in Settings. |
+| Report never sends | Confirm token/channel saved in Settings and a session exists for the current focus day; `kubectl -n focusarc logs deploy/focusarc` for Telegram API errors. Reports are manual (End day / Send report now) — there is no scheduler. |
+| Logged out on every reload / "Not authenticated" | `JWT_SECRET` changed or unset between restarts invalidates issued tokens. Set a stable `JWT_SECRET`. |
 | Data lost on restart | Ensure the pod mounts the PVC (`/data`) and `DB_PATH=/data/focusarc.db`. |
 
 ## Notes

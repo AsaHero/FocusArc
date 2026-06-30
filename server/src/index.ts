@@ -5,7 +5,6 @@ import { resolve } from "node:path";
 import { PORT, CLIENT_DIST } from "./config.js";
 import { migrate } from "./db.js";
 import { router } from "./routes.js";
-import { startScheduler } from "./report/scheduler.js";
 
 migrate();
 
@@ -29,5 +28,4 @@ if (existsSync(CLIENT_DIST)) {
 
 app.listen(PORT, () => {
   console.log(`[server] FocusArc listening on http://localhost:${PORT}`);
-  startScheduler();
 });

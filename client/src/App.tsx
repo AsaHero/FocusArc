@@ -2,19 +2,23 @@ import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useStore, type Phase } from "./store";
 import { Splash } from "./screens/Splash";
-import { Onboarding } from "./screens/Onboarding";
+import { Auth } from "./screens/Auth";
 import { Greeting } from "./screens/Greeting";
 import { Timer } from "./screens/Timer";
 import { SessionEnd } from "./screens/SessionEnd";
 import { Settings } from "./screens/Settings";
+import { Account } from "./screens/Account";
+import { History } from "./screens/History";
 
 const SCREENS: Record<Phase, () => JSX.Element> = {
   splash: Splash,
-  onboarding: Onboarding,
+  auth: Auth,
   greeting: Greeting,
   timer: Timer,
   sessionEnd: SessionEnd,
   settings: Settings,
+  account: Account,
+  history: History,
 };
 
 export default function App() {

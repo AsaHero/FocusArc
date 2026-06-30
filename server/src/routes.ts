@@ -1,107 +1,237 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import {
-  publicSettings,
-  getSettings,
-  updateSettings,
-  completeOnboarding,
+  createUser,
+  getUser,
+  getUserByName,
+  publicUser,
+  updateUser,
+  changePassword,
+  deleteUser,
   markGreetingSeen,
-} from "./settings.js";
+  currentFocusDate,
+  closeFocusDay,
+} from "./users.js";
+import {
+  signAccessToken,
+  issueRefreshToken,
+  rotateRefreshToken,
+  userIdForRefresh,
+  revokeRefreshToken,
+  requireAuth,
+  verifyPassword,
+  type AuthedRequest,
+} from "./auth.js";
 import {
   startSession,
   pauseSession,
   resumeSession,
   stopSession,
   getActiveSession,
-  getSession,
   daySummary,
+  history,
   elapsedMs,
+  type SessionRow,
 } from "./sessions.js";
 import { sendReport } from "./report/telegram.js";
-import { localDate, greetingFor, prettyDate } from "./time.js";
+import { greetingFor, prettyDate } from "./time.js";
 
 export const router = Router();
 
-function activePayload() {
-  const a = getActiveSession();
-  if (!a) return null;
-  return { id: a.id, state: a.state, elapsedMs: elapsedMs(a), startTs: a.start_ts };
+const NAME_RE = /^[a-zA-Z0-9_.-]{2,40}$/;
+
+function activeView(s: SessionRow) {
+  return { id: s.id, state: s.state, elapsedMs: elapsedMs(s), startTs: s.start_ts };
 }
 
-/** One call that powers the initial client render. */
-router.get("/bootstrap", (_req, res) => {
-  const s = getSettings();
-  const today = localDate(s.timezone);
-  const greetingDue = s.onboarded === 1 && s.last_greeting_date !== today;
+function activePayload(userId: number) {
+  const a = getActiveSession(userId);
+  return a ? activeView(a) : null;
+}
+
+/** Issue a fresh access+refresh pair and return the standard auth response. */
+function authResponse(res: Response, userId: number) {
+  const u = getUser(userId)!;
   res.json({
-    settings: publicSettings(),
-    today: daySummary(today),
-    active: activePayload(),
+    accessToken: signAccessToken(userId),
+    refreshToken: issueRefreshToken(userId),
+    user: publicUser(u),
+  });
+}
+
+// ---- public auth routes ----------------------------------------------------
+
+router.post("/auth/register", (req, res) => {
+  const name = String(req.body?.name ?? "").trim();
+  const password = String(req.body?.password ?? "");
+  const timezone = String(req.body?.timezone ?? "UTC");
+  if (!NAME_RE.test(name)) {
+    return res.status(400).json({ error: "Name must be 2–40 letters, digits, . _ or -" });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+  if (getUserByName(name)) {
+    return res.status(409).json({ error: "That name is taken" });
+  }
+  const u = createUser(name, password, timezone);
+  return authResponse(res, u.id);
+});
+
+router.post("/auth/login", (req, res) => {
+  const name = String(req.body?.name ?? "").trim();
+  const password = String(req.body?.password ?? "");
+  const u = getUserByName(name);
+  if (!u || !verifyPassword(password, u.password_hash)) {
+    return res.status(401).json({ error: "Invalid name or password" });
+  }
+  return authResponse(res, u.id);
+});
+
+router.post("/auth/refresh", (req, res) => {
+  const raw = String(req.body?.refreshToken ?? "");
+  const userId = userIdForRefresh(raw);
+  if (userId == null) return res.status(401).json({ error: "Invalid refresh token" });
+  const next = rotateRefreshToken(raw);
+  if (!next) return res.status(401).json({ error: "Invalid refresh token" });
+  res.json({
+    accessToken: signAccessToken(userId),
+    refreshToken: next,
+    user: publicUser(getUser(userId)!),
+  });
+});
+
+router.post("/auth/logout", (req, res) => {
+  const raw = String(req.body?.refreshToken ?? "");
+  if (raw) revokeRefreshToken(raw);
+  res.json({ ok: true });
+});
+
+// ---- everything below requires authentication ------------------------------
+
+router.use(requireAuth);
+
+router.get("/auth/me", (req: AuthedRequest, res) => {
+  res.json({ user: publicUser(getUser(req.userId!)!) });
+});
+
+/** One call that powers the initial client render. */
+router.get("/bootstrap", (req: AuthedRequest, res) => {
+  const u = getUser(req.userId!)!;
+  const focus = currentFocusDate(u);
+  const greetingDue = u.onboarded === 1 && u.last_greeting_date !== focus;
+  res.json({
+    settings: publicUser(u),
+    today: daySummary(u, focus),
+    active: activePayload(u.id),
     greeting: {
       due: greetingDue,
-      text: greetingFor(s.timezone),
-      name: s.name,
-      date: prettyDate(today),
+      text: greetingFor(u.timezone),
+      name: u.name,
+      date: prettyDate(focus),
     },
   });
 });
 
-router.put("/settings", (req, res) => {
-  const { name, timezone, telegramBotToken, telegramChannelId } = req.body ?? {};
-  updateSettings({ name, timezone, telegramBotToken, telegramChannelId });
-  res.json({ settings: publicSettings() });
+router.put("/settings", (req: AuthedRequest, res) => {
+  const { timezone, telegramBotToken, telegramChannelId } = req.body ?? {};
+  updateUser(req.userId!, { timezone, telegramBotToken, telegramChannelId });
+  res.json({ settings: publicUser(getUser(req.userId!)!) });
 });
 
-router.post("/onboarding", (req, res) => {
-  const name = String(req.body?.name ?? "").trim();
-  const timezone = String(req.body?.timezone ?? "UTC");
-  if (!name) return res.status(400).json({ error: "Name is required" });
-  completeOnboarding(name, timezone);
-  res.json({ settings: publicSettings() });
-});
-
-router.post("/greeting/seen", (_req, res) => {
-  markGreetingSeen(localDate(getSettings().timezone));
+router.post("/greeting/seen", (req: AuthedRequest, res) => {
+  const u = getUser(req.userId!)!;
+  markGreetingSeen(u.id, currentFocusDate(u));
   res.json({ ok: true });
 });
 
-router.post("/sessions/start", (_req, res) => {
-  const s = startSession();
-  res.json({ active: { id: s.id, state: s.state, elapsedMs: elapsedMs(s), startTs: s.start_ts } });
+router.post("/sessions/start", (req: AuthedRequest, res) => {
+  res.json({ active: activeView(startSession(req.userId!)) });
 });
 
-router.post("/sessions/pause", (req, res) => {
-  const id = Number(req.body?.id);
-  const s = pauseSession(id);
+router.post("/sessions/pause", (req: AuthedRequest, res) => {
+  const s = pauseSession(req.userId!, Number(req.body?.id));
   if (!s) return res.status(404).json({ error: "Session not found" });
-  res.json({ active: { id: s.id, state: s.state, elapsedMs: elapsedMs(s), startTs: s.start_ts } });
+  res.json({ active: activeView(s) });
 });
 
-router.post("/sessions/resume", (req, res) => {
-  const id = Number(req.body?.id);
-  const s = resumeSession(id);
+router.post("/sessions/resume", (req: AuthedRequest, res) => {
+  const s = resumeSession(req.userId!, Number(req.body?.id));
   if (!s) return res.status(404).json({ error: "Session not found" });
-  res.json({ active: { id: s.id, state: s.state, elapsedMs: elapsedMs(s), startTs: s.start_ts } });
+  res.json({ active: activeView(s) });
 });
 
-router.post("/sessions/stop", (req, res) => {
-  const id = Number(req.body?.id);
-  const s = stopSession(id);
+router.post("/sessions/stop", (req: AuthedRequest, res) => {
+  const s = stopSession(req.userId!, Number(req.body?.id));
   if (!s) return res.status(404).json({ error: "Session not found" });
   res.json({
     session: { id: s.id, durationMs: elapsedMs(s) },
-    today: daySummary(),
+    today: daySummary(getUser(req.userId!)!),
   });
 });
 
-router.get("/today", (_req, res) => {
-  res.json({ today: daySummary() });
+router.get("/today", (req: AuthedRequest, res) => {
+  res.json({ today: daySummary(getUser(req.userId!)!) });
 });
 
-router.post("/report/test", async (_req, res) => {
+router.get("/history", (req: AuthedRequest, res) => {
+  res.json({ history: history(getUser(req.userId!)!) });
+});
+
+/** Manually send the report for the current focus day. */
+router.post("/report/send", async (req: AuthedRequest, res) => {
   try {
-    await sendReport();
+    await sendReport(req.userId!);
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
+});
+
+/**
+ * End the focus day: stop any active session, send the report (best-effort if
+ * Telegram is configured), then close the focus day so the streak locks in.
+ */
+router.post("/day/end", async (req: AuthedRequest, res) => {
+  const userId = req.userId!;
+  const active = getActiveSession(userId);
+  if (active) stopSession(userId, active.id);
+
+  const u = getUser(userId)!;
+  const focus = currentFocusDate(u);
+  const summary = daySummary(u, focus);
+
+  let reportSent = false;
+  let reportError: string | undefined;
+  if (u.telegram_bot_token && u.telegram_channel_id) {
+    try {
+      await sendReport(userId, focus);
+      reportSent = true;
+    } catch (err) {
+      reportError = (err as Error).message;
+    }
+  }
+
+  closeFocusDay(userId);
+  res.json({ today: summary, reportSent, reportError });
+});
+
+// ---- account ---
+
+router.put("/account/password", (req: AuthedRequest, res) => {
+  const current = String(req.body?.current ?? "");
+  const next = String(req.body?.next ?? "");
+  const u = getUser(req.userId!)!;
+  if (!verifyPassword(current, u.password_hash)) {
+    return res.status(400).json({ error: "Current password is incorrect" });
+  }
+  if (next.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+  changePassword(u.id, next);
+  res.json({ ok: true });
+});
+
+router.delete("/account", (req: AuthedRequest, res) => {
+  deleteUser(req.userId!);
+  res.json({ ok: true });
 });

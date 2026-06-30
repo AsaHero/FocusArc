@@ -7,7 +7,6 @@ import "./Settings.css";
 
 export function Settings() {
   const { settings, saveSettings, setPhase } = useStore();
-  const [name, setName] = useState(settings?.name ?? "");
   const [timezone, setTimezone] = useState(settings?.timezone ?? "UTC");
   const [botToken, setBotToken] = useState("");
   const [channelId, setChannelId] = useState(settings?.telegramChannelId ?? "");
@@ -17,17 +16,18 @@ export function Settings() {
 
   const detectedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
+  const patch = () => ({
+    timezone: timezone.trim() || "UTC",
+    telegramChannelId: channelId.trim(),
+    // Only send token if the user typed one (leaves stored value intact otherwise).
+    ...(botToken.trim() ? { telegramBotToken: botToken.trim() } : {}),
+  });
+
   const save = async () => {
     setBusy(true);
     setSavedMsg(null);
     try {
-      await saveSettings({
-        name: name.trim(),
-        timezone: timezone.trim() || "UTC",
-        telegramChannelId: channelId.trim(),
-        // Only send token if the user typed one (leaves stored value intact otherwise).
-        ...(botToken.trim() ? { telegramBotToken: botToken.trim() } : {}),
-      });
+      await saveSettings(patch());
       setBotToken("");
       setSavedMsg("Saved");
       setTimeout(() => setSavedMsg(null), 1800);
@@ -41,15 +41,10 @@ export function Settings() {
     setBusy(true);
     try {
       // Persist current values first so the test uses fresh credentials.
-      await saveSettings({
-        name: name.trim(),
-        timezone: timezone.trim() || "UTC",
-        telegramChannelId: channelId.trim(),
-        ...(botToken.trim() ? { telegramBotToken: botToken.trim() } : {}),
-      });
+      await saveSettings(patch());
       setBotToken("");
-      await api.testReport();
-      setToast({ kind: "ok", text: "Test report sent to Telegram." });
+      await api.sendReport();
+      setToast({ kind: "ok", text: "Report sent to Telegram." });
     } catch (e) {
       setToast({ kind: "err", text: (e as Error).message });
     } finally {
@@ -69,11 +64,6 @@ export function Settings() {
         </div>
 
         <div className="field">
-          <label>Name</label>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
-        </div>
-
-        <div className="field">
           <label>Timezone</label>
           <input
             className="input"
@@ -90,7 +80,7 @@ export function Settings() {
 
         <div className="settings-divider" />
         <p className="subtle" style={{ textAlign: "left" }}>
-          Telegram daily report (optional) — sent automatically at 23:59 your time.
+          Telegram report (optional) — sent on demand when you tap “End day” or “Send report”.
         </p>
 
         <div className="field">
@@ -122,11 +112,16 @@ export function Settings() {
             {savedMsg ?? "Save"}
           </Button>
           <Button variant="ghost" onClick={() => void sendTest()} disabled={busy}>
-            Send test report
+            Send report now
           </Button>
         </div>
 
         {toast && <div className={`settings-toast settings-toast-${toast.kind}`}>{toast.text}</div>}
+
+        <div className="settings-divider" />
+        <button className="settings-link" onClick={() => setPhase("account")}>
+          Account & password →
+        </button>
       </div>
     </div>
   );

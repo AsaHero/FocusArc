@@ -45,8 +45,12 @@ spec:
               value: "4000"
             - name: DB_PATH
               value: /data/focusarc.db
-            # - name: REPORT_TIME
-            #   value: "23:59"   # override the daily-report time if you like
+            # Sign-in tokens are signed with this. MUST be a long random string
+            # in production. Generate one: `openssl rand -hex 32`.
+            - name: JWT_SECRET
+              value: "change-me-to-a-long-random-string"
+            - name: NODE_ENV
+              value: production
           volumeMounts:
             - name: data
               mountPath: /data

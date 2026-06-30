@@ -28,6 +28,14 @@ export function writeCache(c: CacheShape): void {
   }
 }
 
+export function clearCache(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function cacheFromBootstrap(b: Bootstrap): CacheShape {
   return {
     name: b.settings.name,

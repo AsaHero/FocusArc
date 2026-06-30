@@ -18,9 +18,11 @@ function useNow(active: boolean) {
 }
 
 export function Timer() {
-  const { active, today, anchorAt, start, pause, resume, stop, setPhase } = useStore();
+  const { active, today, anchorAt, start, pause, resume, stop, endDay, setPhase } = useStore();
   const running = active?.state === "running";
   const now = useNow(running);
+  const streak = today?.streak ?? 0;
+  const canEndDay = (today?.sessions?.length ?? 0) > 0 || !!active;
 
   const elapsed = active ? liveElapsed({ active, anchorAt }, now) : 0;
   const { h, m, s } = hms(elapsed);
@@ -42,6 +44,7 @@ export function Timer() {
 
       <div className="timer-today">
         Today · <span className="accent">{humanDuration(todayMs)}</span>
+        {streak > 0 && <span className="muted"> · 🔥 {streak}d</span>}
       </div>
 
       <div className="timer-controls">
@@ -49,6 +52,9 @@ export function Timer() {
           <>
             <Button variant="solid" onClick={() => void start()}>
               Start
+            </Button>
+            <Button variant="quiet" onClick={() => setPhase("history")}>
+              History
             </Button>
             <Button variant="quiet" onClick={() => setPhase("settings")}>
               Settings
@@ -71,6 +77,15 @@ export function Timer() {
           </>
         )}
       </div>
+
+      {canEndDay && (
+        <button className="timer-endday" onClick={() => void endDay()}>
+          End day{" "}
+          <span className="muted">
+            — wrap up{useStore.getState().settings?.telegramConfigured ? " & send report" : ""}
+          </span>
+        </button>
+      )}
     </div>
   );
 }

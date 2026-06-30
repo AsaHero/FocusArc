@@ -1,5 +1,5 @@
-import { getSettings } from "../settings.js";
-import { daySummary, type DaySummary } from "../sessions.js";
+import { getUser, currentFocusDate } from "../users.js";
+import { daySummary, sessionsForDate, type DaySummary } from "../sessions.js";
 import { renderReportImage } from "./render.js";
 import { prettyDate } from "../time.js";
 
@@ -42,31 +42,34 @@ async function tg(token: string, method: string, body: FormData | object) {
 }
 
 /**
- * Render and send the daily report (image + text) to the configured channel.
+ * Render and send a user's daily report (image + text) to their channel.
  * Throws if Telegram is not configured or the API rejects the request.
  */
-export async function sendReport(date?: string): Promise<void> {
-  const s = getSettings();
-  if (!s.telegram_bot_token || !s.telegram_channel_id) {
+export async function sendReport(userId: number, date?: string): Promise<void> {
+  const u = getUser(userId);
+  if (!u) throw new Error("User not found");
+  if (!u.telegram_bot_token || !u.telegram_channel_id) {
     throw new Error("Telegram is not configured. Add a bot token and channel ID in Settings.");
   }
 
-  const summary = daySummary(date);
-  const image = await renderReportImage(summary);
+  const d = date ?? currentFocusDate(u);
+  const summary = daySummary(u, d);
+  const rows = sessionsForDate(u.id, d);
+  const image = await renderReportImage(summary, u.timezone, rows);
 
   // PART 1 — image
   const form = new FormData();
-  form.append("chat_id", s.telegram_channel_id);
+  form.append("chat_id", u.telegram_channel_id);
   form.append(
     "photo",
     new Blob([new Uint8Array(image)], { type: "image/png" }),
     "focusarc.png"
   );
-  await tg(s.telegram_bot_token, "sendPhoto", form);
+  await tg(u.telegram_bot_token, "sendPhoto", form);
 
   // PART 2 — text
-  await tg(s.telegram_bot_token, "sendMessage", {
-    chat_id: s.telegram_channel_id,
+  await tg(u.telegram_bot_token, "sendMessage", {
+    chat_id: u.telegram_channel_id,
     text: buildReportText(summary),
   });
 }
