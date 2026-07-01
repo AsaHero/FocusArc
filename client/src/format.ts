@@ -8,6 +8,12 @@ export function hms(ms: number): { h: string; m: string; s: string } {
   return { h: pad(h), m: pad(m), s: pad(s) };
 }
 
+/** "HH:MM:SS" — for the browser tab title while a session runs. */
+export function hmsClock(ms: number): string {
+  const { h, m, s } = hms(ms);
+  return `${h}:${m}:${s}`;
+}
+
 /** "Xh Ym", "Ym", or "0m" — for today totals and session durations. */
 export function humanDuration(ms: number): string {
   const totalMin = Math.floor(ms / 60000);

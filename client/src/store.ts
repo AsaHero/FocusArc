@@ -3,6 +3,7 @@ import {
   api,
   tokens,
   setLogoutHandler,
+  refreshAccessToken,
   type ActiveSession,
   type DaySummary,
   type History,
@@ -43,6 +44,8 @@ interface AppState {
   cache: CacheShape | null;
 
   boot: () => Promise<void>;
+  connectEvents: () => void;
+  disconnectEvents: () => void;
   setPhase: (p: Phase) => void;
   login: (name: string, password: string) => Promise<void>;
   register: (name: string, password: string, timezone: string) => Promise<void>;
@@ -71,6 +74,75 @@ export function liveElapsed(s: Pick<AppState, "active" | "anchorAt">, now: numbe
 
 function setActive(set: (p: Partial<AppState>) => void, active: ActiveSession | null) {
   set({ active, anchorAt: Date.now() });
+}
+
+// ---- real-time sync (SSE) --------------------------------------------------
+
+type SetFn = (p: Partial<AppState>) => void;
+type GetFn = () => AppState;
+interface SyncPayload {
+  active: ActiveSession | null;
+  today: DaySummary;
+}
+
+let eventSource: EventSource | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnecting = false;
+
+function closeEventStream() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnecting = false;
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+  }
+}
+
+function openEventStream(set: SetFn, get: GetFn) {
+  closeEventStream();
+  const access = tokens.access();
+  if (!access) return;
+
+  const es = new EventSource(`/api/events?token=${encodeURIComponent(access)}`);
+  eventSource = es;
+
+  es.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data) as SyncPayload;
+      setActive(set, data.active);
+      set({ today: data.today });
+      persistToday(get, data.today);
+    } catch {
+      /* ignore malformed frame */
+    }
+  };
+
+  es.onerror = () => {
+    if (eventSource !== es) return;
+    // A rejected/expired token closes the stream permanently — refresh and
+    // reconnect. Transient drops leave readyState CONNECTING; the browser
+    // auto-retries those, so we don't interfere.
+    if (es.readyState === EventSource.CLOSED) {
+      es.close();
+      eventSource = null;
+      scheduleReconnect(set, get);
+    }
+  };
+}
+
+function scheduleReconnect(set: SetFn, get: GetFn) {
+  if (reconnecting) return;
+  reconnecting = true;
+  reconnectTimer = setTimeout(async () => {
+    reconnectTimer = null;
+    reconnecting = false;
+    if (!tokens.has()) return;
+    const ok = await refreshAccessToken().catch(() => false);
+    if (ok) openEventStream(set, get);
+  }, 1500);
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -112,12 +184,17 @@ export const useStore = create<AppState>((set, get) => ({
       if (b.active) target = "timer";
       else if (b.greeting.due) target = "greeting";
       set({ bootTarget: target });
+
+      get().connectEvents();
     } catch {
       // Token invalid/expired and refresh failed → auth screen.
       tokens.clear();
       set({ booted: true, authed: false, bootTarget: "auth" });
     }
   },
+
+  connectEvents: () => openEventStream(set, get),
+  disconnectEvents: () => closeEventStream(),
 
   setPhase: (phase) => set({ phase }),
 
@@ -136,6 +213,7 @@ export const useStore = create<AppState>((set, get) => ({
   },
 
   logout: async () => {
+    closeEventStream();
     await api.logout();
     tokens.clear();
     clearCache();
@@ -230,6 +308,7 @@ function persistToday(get: () => AppState, today: DaySummary) {
 
 // When a refresh ultimately fails, drop straight back to the auth screen.
 setLogoutHandler(() => {
+  closeEventStream();
   clearCache();
   useStore.setState({
     authed: false,

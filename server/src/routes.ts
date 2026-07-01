@@ -19,8 +19,10 @@ import {
   revokeRefreshToken,
   requireAuth,
   verifyPassword,
+  verifyAccessToken,
   type AuthedRequest,
 } from "./auth.js";
+import { subscribe, broadcast } from "./events.js";
 import {
   startSession,
   pauseSession,
@@ -30,6 +32,7 @@ import {
   daySummary,
   history,
   elapsedMs,
+  maybeAutoCloseFocusDay,
   type SessionRow,
 } from "./sessions.js";
 import { sendReport } from "./report/telegram.js";
@@ -46,6 +49,11 @@ function activeView(s: SessionRow) {
 function activePayload(userId: number) {
   const a = getActiveSession(userId);
   return a ? activeView(a) : null;
+}
+
+/** Push the user's current active session + today summary to their devices. */
+function broadcastState(userId: number) {
+  broadcast(userId, { active: activePayload(userId), today: daySummary(getUser(userId)!) });
 }
 
 /** Issue a fresh access+refresh pair and return the standard auth response. */
@@ -106,6 +114,33 @@ router.post("/auth/logout", (req, res) => {
   res.json({ ok: true });
 });
 
+/**
+ * Real-time state stream (SSE). EventSource can't send an Authorization header,
+ * so the short-lived access token comes in as a query param and is verified
+ * here. The client refreshes the token and reconnects when it expires.
+ */
+router.get("/events", (req, res) => {
+  const token = String(req.query.token ?? "");
+  const userId = token ? verifyAccessToken(token) : null;
+  if (userId == null) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write("retry: 3000\n\n");
+  subscribe(userId, res);
+
+  // Prime the connection with the current state so a fresh subscriber is
+  // immediately consistent without waiting for the next mutation.
+  broadcastState(userId);
+});
+
 // ---- everything below requires authentication ------------------------------
 
 router.use(requireAuth);
@@ -116,6 +151,8 @@ router.get("/auth/me", (req: AuthedRequest, res) => {
 
 /** One call that powers the initial client render. */
 router.get("/bootstrap", (req: AuthedRequest, res) => {
+  // Close a stale (>24h) focus day on open, not just on the next Start.
+  maybeAutoCloseFocusDay(getUser(req.userId!)!);
   const u = getUser(req.userId!)!;
   const focus = currentFocusDate(u);
   const greetingDue = u.onboarded === 1 && u.last_greeting_date !== focus;
@@ -145,19 +182,23 @@ router.post("/greeting/seen", (req: AuthedRequest, res) => {
 });
 
 router.post("/sessions/start", (req: AuthedRequest, res) => {
-  res.json({ active: activeView(startSession(req.userId!)) });
+  const s = startSession(req.userId!);
+  res.json({ active: activeView(s) });
+  broadcastState(req.userId!);
 });
 
 router.post("/sessions/pause", (req: AuthedRequest, res) => {
   const s = pauseSession(req.userId!, Number(req.body?.id));
   if (!s) return res.status(404).json({ error: "Session not found" });
   res.json({ active: activeView(s) });
+  broadcastState(req.userId!);
 });
 
 router.post("/sessions/resume", (req: AuthedRequest, res) => {
   const s = resumeSession(req.userId!, Number(req.body?.id));
   if (!s) return res.status(404).json({ error: "Session not found" });
   res.json({ active: activeView(s) });
+  broadcastState(req.userId!);
 });
 
 router.post("/sessions/stop", (req: AuthedRequest, res) => {
@@ -167,6 +208,7 @@ router.post("/sessions/stop", (req: AuthedRequest, res) => {
     session: { id: s.id, durationMs: elapsedMs(s) },
     today: daySummary(getUser(req.userId!)!),
   });
+  broadcastState(req.userId!);
 });
 
 router.get("/today", (req: AuthedRequest, res) => {
@@ -175,6 +217,15 @@ router.get("/today", (req: AuthedRequest, res) => {
 
 router.get("/history", (req: AuthedRequest, res) => {
   res.json({ history: history(getUser(req.userId!)!) });
+});
+
+/** Sessions for a single past focus day (for the history drill-down). */
+router.get("/history/day/:date", (req: AuthedRequest, res) => {
+  const date = String(req.params.date);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "Bad date" });
+  }
+  res.json({ day: daySummary(getUser(req.userId!)!, date) });
 });
 
 /** Manually send the report for the current focus day. */
@@ -213,6 +264,7 @@ router.post("/day/end", async (req: AuthedRequest, res) => {
 
   closeFocusDay(userId);
   res.json({ today: summary, reportSent, reportError });
+  broadcastState(userId);
 });
 
 // ---- account ---

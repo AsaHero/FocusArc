@@ -33,7 +33,7 @@ export function signAccessToken(userId: number): string {
   return jwt.sign({ sub: String(userId) }, JWT_SECRET, { expiresIn: ACCESS_TTL_SEC });
 }
 
-function verifyAccessToken(token: string): number | null {
+export function verifyAccessToken(token: string): number | null {
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { sub?: string };
     const id = Number(payload.sub);

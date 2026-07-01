@@ -117,6 +117,11 @@ async function tryRefresh(): Promise<boolean> {
   }
 }
 
+/** Refresh the access token once (for the SSE stream to reconnect). */
+export function refreshAccessToken(): Promise<boolean> {
+  return tryRefresh();
+}
+
 /** Authenticated request with transparent one-shot refresh-and-retry on 401. */
 async function req<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
@@ -191,6 +196,7 @@ export const api = {
 
   today: () => req<{ today: DaySummary }>("/today"),
   history: () => req<{ history: History }>("/history"),
+  historyDay: (date: string) => req<{ day: DaySummary }>(`/history/day/${date}`),
 
   endDay: () =>
     req<{ today: DaySummary; reportSent: boolean; reportError?: string }>("/day/end", {
