@@ -1,19 +1,20 @@
-# Public ingress via k3s's built-in Traefik. No auth (as chosen).
-# Edit the host to your domain (or use the VPS IP with a nip.io host).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: focusarc
   namespace: focusarc
   annotations:
-    # Optional HTTPS via Traefik's built-in ACME resolver (configure in k3s first):
-    # traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    # traefik.ingress.kubernetes.io/router.tls.certresolver: le
-    spec.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    traefik.ingress.kubernetes.io/router.middlewares: focusarc-redirect-https@kubernetescrd
+    cert-manager.io/cluster-issuer: letsencrypt
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - fa.188.245.207.173.nip.io
+      secretName: focusarc-tls
   rules:
-    - host: focusarc.example.com # <-- change to your domain or <VPS_IP>.nip.io
+    - host: fa.188.245.207.173.nip.io
       http:
         paths:
           - path: /

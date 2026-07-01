@@ -9,6 +9,9 @@ server/focusarc.db-*
 *.sqlite
 *.sqlite-journal
 
+# Pulled DB backups (real user data + Telegram credentials)
+.backup/
+
 # Env
 .env
 .env.local
