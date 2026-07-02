@@ -1,0 +1,326 @@
+.arc-buddy {
+  position: relative;
+  width: 86px;
+  height: 86px;
+}
+
+/* the pet target: resets button chrome, holds the figure */
+.arc-figure {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  will-change: transform;
+}
+
+.arc-figure:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+.arc-svg {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 3px 10px rgba(201, 168, 76, 0.35));
+  z-index: 1;
+}
+
+/* soft glow behind the body, pulsing gently */
+.arc-glow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(201, 168, 76, 0.5) 0%, rgba(201, 168, 76, 0) 68%);
+  filter: blur(6px);
+  animation: arc-glow-pulse 3.6s var(--ease) infinite;
+  z-index: 0;
+}
+
+.arc-buddy.celebrating .arc-glow {
+  background: radial-gradient(circle, rgba(201, 168, 76, 0.85) 0%, rgba(201, 168, 76, 0) 70%);
+}
+
+/* standing breath: the torso squashes from its base, feet stay planted */
+.arc-torso {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: arc-breathe 3.6s var(--ease) infinite;
+}
+
+/* slower, deeper breath while napping */
+.arc-figure.arc-sleep .arc-torso {
+  animation-duration: 5.8s;
+}
+
+/* reading & tea: tuck the side arms away; a little hand holds the prop */
+.arc-figure.arc-read .arc-arm,
+.arc-figure.arc-tea .arc-arm {
+  display: none;
+}
+
+/* pacing: the whole walk is driven by a GSAP timeline (see the ponder effect in
+   ArcBuddy.tsx) so travel, lean, eye-glance and the gait live in one place and
+   stay in phase. Here we just hand the torso and arms over — silencing the idle
+   breath/sway so GSAP alone owns their transforms while Arc walks. */
+.arc-figure.arc-ponder .arc-torso,
+.arc-figure.arc-ponder .arc-arm {
+  animation: none;
+}
+
+/* the antenna dot and arms bob softly along with the breath */
+.arc-antenna,
+.arc-arm {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: arc-sway 3.6s var(--ease) infinite;
+}
+
+/* when happy, the arms fly up and wave "yay!" */
+.arc-figure.arc-happy .arc-arm-l {
+  transform-origin: 65% 28%;
+  animation: arc-wave-l 0.42s ease-in-out infinite;
+}
+
+.arc-figure.arc-happy .arc-arm-r {
+  transform-origin: 35% 28%;
+  animation: arc-wave-r 0.42s ease-in-out infinite;
+}
+
+.arc-cheek {
+  opacity: 0.5;
+}
+
+.arc-figure.arc-happy .arc-cheek {
+  opacity: 0.85;
+}
+
+/* eyes: periodic blink (open pair only) */
+.arc-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: arc-blink 6.5s ease-in-out infinite;
+}
+
+.arc-mouth {
+  transition: d 0.25s var(--ease);
+}
+
+/* pondering: a little thought cloud that pulses */
+.arc-think circle {
+  animation: arc-think-pulse 1.8s ease-in-out infinite;
+}
+.arc-think .t2 {
+  animation-delay: 0.25s;
+}
+.arc-think .t3 {
+  animation-delay: 0.5s;
+}
+
+/* sleeping: Zzz drift up and fade */
+.arc-zzz text {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: arc-zzz 2.8s ease-in-out infinite;
+}
+.arc-zzz .z2 {
+  animation-delay: 0.5s;
+}
+.arc-zzz .z3 {
+  animation-delay: 1s;
+}
+
+/* stargazing: stars twinkle in and out */
+.arc-stars > * {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: arc-twinkle 2.4s ease-in-out infinite;
+}
+.arc-stars .st2 {
+  animation-delay: 0.5s;
+}
+.arc-stars .st3 {
+  animation-delay: 1s;
+}
+
+/* tea: steam curls upward and fades */
+.arc-steam path {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: arc-steam 2.6s ease-in-out infinite;
+}
+.arc-steam .s2 {
+  animation-delay: 0.8s;
+}
+
+/* floating particles (hearts on pet, sparks on celebrate) */
+.arc-particles {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  width: 0;
+  height: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.arc-particle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.arc-heart {
+  color: #e8738a;
+}
+
+.arc-spark {
+  color: var(--accent);
+}
+
+@keyframes arc-breathe {
+  0%,
+  100% {
+    transform: scaleX(1) scaleY(1);
+  }
+  50% {
+    transform: scaleX(1.02) scaleY(0.95);
+  }
+}
+
+@keyframes arc-sway {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.4px);
+  }
+}
+
+@keyframes arc-wave-l {
+  0%,
+  100% {
+    transform: rotate(20deg);
+  }
+  50% {
+    transform: rotate(46deg);
+  }
+}
+
+@keyframes arc-wave-r {
+  0%,
+  100% {
+    transform: rotate(-20deg);
+  }
+  50% {
+    transform: rotate(-46deg);
+  }
+}
+
+@keyframes arc-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+@keyframes arc-blink {
+  0%,
+  90%,
+  100% {
+    transform: scaleY(1);
+  }
+  94% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes arc-think-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes arc-zzz {
+  0% {
+    opacity: 0;
+    transform: translateY(3px) scale(0.85);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(1.1);
+  }
+}
+
+
+@keyframes arc-twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.7);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes arc-steam {
+  0% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  30% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+}
+
+@media (max-width: 520px) {
+  .arc-buddy {
+    width: 66px;
+    height: 66px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arc-torso,
+  .arc-eye,
+  .arc-glow,
+  .arc-antenna,
+  .arc-arm,
+  .arc-figure.arc-happy .arc-arm-l,
+  .arc-figure.arc-happy .arc-arm-r,
+  .arc-think circle,
+  .arc-zzz text,
+  .arc-stars > *,
+  .arc-steam path {
+    animation: none;
+  }
+  .arc-mouth {
+    transition: none;
+  }
+}

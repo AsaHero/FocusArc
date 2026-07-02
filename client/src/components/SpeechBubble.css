@@ -1,0 +1,77 @@
+/* Anchor sits above Arc and is pinned to Arc's right edge, so the bubble
+   grows up-and-to-the-left and never clips off a right-hand placement. */
+.bubble-anchor {
+  position: absolute;
+  bottom: 100%;
+  right: 4px;
+  margin-bottom: 14px;
+  width: max-content;
+  max-width: min(240px, 62vw);
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.bubble {
+  position: relative;
+  padding: 10px 13px;
+  border-radius: 13px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--ui);
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: center;
+  letter-spacing: 0.01em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.bubble-quote {
+  font-style: italic;
+  color: #e6e6e6;
+}
+
+.bubble-cheer {
+  border-color: rgba(201, 168, 76, 0.4);
+}
+
+.bubble-celebrate {
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(201, 168, 76, 0.35);
+}
+
+/* Downward tail: a rotated square straddling the bubble's bottom edge, sitting
+   near the right so it points down at Arc below. */
+.bubble-tail {
+  position: absolute;
+  right: 26px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  background: inherit;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-bottom-right-radius: 2px;
+}
+
+.bubble-cheer .bubble-tail {
+  border-color: rgba(201, 168, 76, 0.4);
+}
+
+.bubble-celebrate .bubble-tail {
+  border-color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .bubble-anchor {
+    max-width: min(200px, 70vw);
+    margin-bottom: 10px;
+  }
+  .bubble {
+    font-size: 12px;
+    padding: 8px 11px;
+  }
+}

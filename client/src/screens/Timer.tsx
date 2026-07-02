@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { FlipClock } from "../components/FlipClock";
 import { PulseLine } from "../components/PulseLine";
+import { ArcBuddy } from "../components/ArcBuddy";
 import { Button } from "../components/Button";
 import { Logo } from "../components/Logo";
 import { useStore, liveElapsed } from "../store";
@@ -113,7 +114,9 @@ export function Timer() {
         </nav>
       </header>
 
-      <p className="timer-quote">“{quote}”</p>
+      {/* Arc now presents the quote in its speech bubble; keep the line for
+          screen readers so the rotation logic stays accessible. */}
+      <p className="timer-quote sr-only">“{quote}”</p>
 
       <div className="timer-stage">
         <FlipClock h={h} m={m} s={s} />
@@ -168,6 +171,13 @@ export function Timer() {
           </span>
         </button>
       )}
+
+      <ArcBuddy
+        sessionState={lineState === "stopped" ? "idle" : lineState}
+        elapsedMs={elapsed}
+        streak={streak}
+        quote={quote}
+      />
     </div>
   );
 }
